@@ -2,7 +2,9 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Todo App E2E', () => {
   test.beforeEach(async ({ page, request }) => {
-    await request.delete('/api/todos/reset');
+    await request.delete('/api/todos/reset', {
+      headers: { 'x-reset-secret': process.env.RESET_SECRET ?? '' },
+    });
     await page.goto('/');
   });
 
