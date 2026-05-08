@@ -2,9 +2,9 @@ import { NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
 
 // Test-only endpoint to wipe all todos between E2E test runs.
-// Only active when NODE_ENV !== 'production'.
+// Only active when APP_ENV === 'test'.
 export function DELETE() {
-  if (process.env.NODE_ENV === 'production') {
+  if (process.env.APP_ENV !== 'test') {
     return NextResponse.json({ error: 'not available' }, { status: 403 });
   }
   const db = getDb();

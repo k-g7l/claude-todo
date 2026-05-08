@@ -11,7 +11,13 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     return NextResponse.json({ error: 'invalid id' }, { status: 400 });
   }
 
-  const body = await request.json();
+  let body: Record<string, unknown>;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: 'invalid JSON' }, { status: 400 });
+  }
+
   const hasCompleted = 'completed' in body;
   const hasFolderId = 'folder_id' in body;
 
@@ -23,10 +29,14 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     return NextResponse.json({ error: 'completed must be a boolean' }, { status: 400 });
   }
 
+  if (hasFolderId && body.folder_id !== null && typeof body.folder_id !== 'number') {
+    return NextResponse.json({ error: 'folder_id must be a number or null' }, { status: 400 });
+  }
+
   const db = getDb();
   const existing = db.prepare('SELECT * FROM todos WHERE id = ?').get(numId);
   if (!existing) {
-    return NextResponse.json({ error: 'not found' }, { status: 404 });
+    return NextResponse.json({ error: 'invalid request' }, { status: 404 });
   }
 
   const setClauses: string[] = [];
@@ -34,12 +44,12 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
   if (hasCompleted) {
     setClauses.push('completed = ?');
-    values.push(body.completed ? 1 : 0);
+    values.push((body.completed as boolean) ? 1 : 0);
   }
 
   if (hasFolderId) {
     setClauses.push('folder_id = ?');
-    values.push(body.folder_id ?? null);
+    values.push((body.folder_id as number | null) ?? null);
   }
 
   values.push(numId);
@@ -59,7 +69,7 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
   const db = getDb();
   const existing = db.prepare('SELECT * FROM todos WHERE id = ?').get(numId);
   if (!existing) {
-    return NextResponse.json({ error: 'not found' }, { status: 404 });
+    return NextResponse.json({ error: 'invalid request' }, { status: 404 });
   }
 
   db.prepare('DELETE FROM todos WHERE id = ?').run(numId);

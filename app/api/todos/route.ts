@@ -33,8 +33,16 @@ export function GET(request: NextRequest) {
   return NextResponse.json(todos);
 }
 
+const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
 export async function POST(request: NextRequest) {
-  const body = await request.json();
+  let body: Record<string, unknown>;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: 'invalid JSON' }, { status: 400 });
+  }
+
   const { title, due_date, priority, folder_id } = body;
 
   if (!title || typeof title !== 'string' || title.trim() === '') {
@@ -42,17 +50,37 @@ export async function POST(request: NextRequest) {
   }
 
   const validPriorities = ['low', 'medium', 'high'];
-  const resolvedPriority = validPriorities.includes(priority) ? priority : 'medium';
+  if (priority !== undefined && !validPriorities.includes(priority as string)) {
+    return NextResponse.json({ error: 'priority must be low, medium, or high' }, { status: 400 });
+  }
+  const resolvedPriority = validPriorities.includes(priority as string) ? priority : 'medium';
+
+  if (due_date !== undefined && due_date !== null) {
+    if (
+      typeof due_date !== 'string' ||
+      !ISO_DATE_RE.test(due_date) ||
+      isNaN(Date.parse(due_date))
+    ) {
+      return NextResponse.json(
+        { error: 'due_date must be a valid date in YYYY-MM-DD format' },
+        { status: 400 }
+      );
+    }
+  }
+
+  if (folder_id !== undefined && folder_id !== null && typeof folder_id !== 'number') {
+    return NextResponse.json({ error: 'folder_id must be a number' }, { status: 400 });
+  }
 
   const db = getDb();
 
   let resolvedFolderId: number | null = null;
   if (folder_id !== undefined && folder_id !== null) {
-    const folder = db.prepare('SELECT id FROM folders WHERE id = ?').get(folder_id);
+    const folder = db.prepare('SELECT id FROM folders WHERE id = ?').get(folder_id as number);
     if (!folder) {
-      return NextResponse.json({ error: 'folder not found' }, { status: 400 });
+      return NextResponse.json({ error: 'invalid request' }, { status: 400 });
     }
-    resolvedFolderId = folder_id;
+    resolvedFolderId = folder_id as number;
   }
 
   const stmt = db.prepare(

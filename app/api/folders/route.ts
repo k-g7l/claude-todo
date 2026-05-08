@@ -9,7 +9,12 @@ export function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  const body = await request.json();
+  let body: Record<string, unknown>;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: 'invalid JSON' }, { status: 400 });
+  }
   const { name } = body;
 
   if (!name || typeof name !== 'string' || name.trim() === '') {
