@@ -1,6 +1,6 @@
 'use client';
 
-import type { Todo } from '@/lib/types';
+import type { Todo, Folder } from '@/lib/types';
 
 const PRIORITY_STYLES: Record<string, string> = {
   high: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
@@ -12,9 +12,11 @@ interface Props {
   todo: Todo;
   onToggle: (id: number, completed: boolean) => void;
   onDelete: (id: number) => void;
+  folders?: Folder[];
+  onFolderChange?: (id: number, folderId: number | null) => void;
 }
 
-export default function TodoItem({ todo, onToggle, onDelete }: Props) {
+export default function TodoItem({ todo, onToggle, onDelete, folders = [], onFolderChange }: Props) {
   return (
     <li className="flex items-center gap-3 rounded-lg border border-gray-200 bg-white px-4 py-3 shadow-sm dark:border-gray-700 dark:bg-gray-800">
       <input
@@ -41,6 +43,24 @@ export default function TodoItem({ todo, onToggle, onDelete }: Props) {
       >
         {todo.priority}
       </span>
+      {folders.length > 0 && (
+        <select
+          value={todo.folder_id ?? ''}
+          onChange={(e) => {
+            const val = e.target.value;
+            onFolderChange?.(todo.id, val ? Number(val) : null);
+          }}
+          className="shrink-0 rounded border border-gray-200 px-1.5 py-0.5 text-xs text-gray-600 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300"
+          aria-label={`Folder for "${todo.title}"`}
+        >
+          <option value="">None</option>
+          {folders.map((f) => (
+            <option key={f.id} value={f.id}>
+              {f.name}
+            </option>
+          ))}
+        </select>
+      )}
       <button
         onClick={() => onDelete(todo.id)}
         className="shrink-0 text-gray-400 hover:text-red-500 transition-colors"

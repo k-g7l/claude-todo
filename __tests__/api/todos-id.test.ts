@@ -84,6 +84,58 @@ describe('PATCH /api/todos/:id', () => {
     const res = await PATCH(req, makeParams(id));
     expect(res.status).toBe(400);
   });
+
+  it('returns 400 when neither completed nor folder_id provided', async () => {
+    const { lastInsertRowid } = db
+      .prepare("INSERT INTO todos (title, priority) VALUES ('Test', 'medium')")
+      .run();
+    const id = String(lastInsertRowid);
+
+    const req = makeRequest(`http://localhost/api/todos/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({}),
+    });
+    const res = await PATCH(req, makeParams(id));
+    expect(res.status).toBe(400);
+  });
+
+  it('updates folder_id assignment', async () => {
+    const { lastInsertRowid: folderId } = db
+      .prepare("INSERT INTO folders (name) VALUES ('Work')")
+      .run();
+    const { lastInsertRowid } = db
+      .prepare('INSERT INTO todos (title, priority) VALUES (?, ?)')
+      .run('Test', 'medium');
+    const id = String(lastInsertRowid);
+
+    const req = makeRequest(`http://localhost/api/todos/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ folder_id: Number(folderId) }),
+    });
+    const res = await PATCH(req, makeParams(id));
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.folder_id).toBe(Number(folderId));
+  });
+
+  it('clears folder_id when set to null', async () => {
+    const { lastInsertRowid: folderId } = db
+      .prepare("INSERT INTO folders (name) VALUES ('Work')")
+      .run();
+    const { lastInsertRowid } = db
+      .prepare('INSERT INTO todos (title, priority, folder_id) VALUES (?, ?, ?)')
+      .run('Test', 'medium', folderId);
+    const id = String(lastInsertRowid);
+
+    const req = makeRequest(`http://localhost/api/todos/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ folder_id: null }),
+    });
+    const res = await PATCH(req, makeParams(id));
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.folder_id).toBeNull();
+  });
 });
 
 describe('DELETE /api/todos/:id', () => {

@@ -4,6 +4,13 @@ import path from 'path';
 export function createDb(dbPath: string): Database.Database {
   const db = new Database(dbPath);
   db.exec(`
+    CREATE TABLE IF NOT EXISTS folders (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      name       TEXT NOT NULL UNIQUE,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+  `);
+  db.exec(`
     CREATE TABLE IF NOT EXISTS todos (
       id         INTEGER PRIMARY KEY AUTOINCREMENT,
       title      TEXT    NOT NULL,
@@ -13,6 +20,9 @@ export function createDb(dbPath: string): Database.Database {
       created_at TEXT    NOT NULL DEFAULT (datetime('now'))
     );
   `);
+  try {
+    db.exec('ALTER TABLE todos ADD COLUMN folder_id INTEGER REFERENCES folders(id)');
+  } catch {}
   return db;
 }
 

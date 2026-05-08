@@ -7,6 +7,8 @@ export function DELETE() {
   if (process.env.NODE_ENV === 'production') {
     return NextResponse.json({ error: 'not available' }, { status: 403 });
   }
-  getDb().prepare('DELETE FROM todos').run();
+  const db = getDb();
+  db.prepare('DELETE FROM todos').run();
+  db.prepare('DELETE FROM folders').run();
   return new NextResponse(null, { status: 204 });
 }

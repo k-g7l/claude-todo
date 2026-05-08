@@ -103,4 +103,101 @@ test.describe('Todo App E2E', () => {
     await page.reload();
     await expect(page.getByRole('tab', { name: 'Active' })).toHaveAttribute('aria-selected', 'true');
   });
+
+  test('creates a folder and it appears in the sidebar', async ({ page }) => {
+    await page.getByLabel('New folder name').fill('Work');
+    await page.getByLabel('New folder name').press('Enter');
+    await expect(page.getByText('Work')).toBeVisible();
+  });
+
+  test('assigns a todo to a folder and filters correctly', async ({ page }) => {
+    // Create folder
+    await page.getByLabel('New folder name').fill('Work');
+    await page.getByLabel('New folder name').press('Enter');
+    await expect(page.getByText('Work')).toBeVisible();
+
+    // Add a todo
+    await page.getByLabel('Todo title').fill('Folder task');
+    await page.getByRole('button', { name: /add/i }).click();
+    await expect(page.getByText('Folder task')).toBeVisible();
+
+    // Add another todo (unassigned)
+    await page.getByLabel('Todo title').fill('Other task');
+    await page.getByRole('button', { name: /add/i }).click();
+    await expect(page.getByText('Other task')).toBeVisible();
+
+    // Assign 'Folder task' to Work folder
+    await page
+      .getByRole('listitem')
+      .filter({ hasText: 'Folder task' })
+      .getByLabel(/folder for/i)
+      .selectOption({ label: 'Work' });
+
+    // Select Work folder in sidebar
+    await page.getByRole('navigation').getByText('Work').click();
+    await expect(page.getByText('Folder task')).toBeVisible();
+    await expect(page.getByText('Other task')).not.toBeVisible();
+  });
+
+  test('removes todo from folder by selecting None', async ({ page }) => {
+    // Create folder and todo
+    await page.getByLabel('New folder name').fill('Work');
+    await page.getByLabel('New folder name').press('Enter');
+    await expect(page.getByText('Work')).toBeVisible();
+
+    await page.getByLabel('Todo title').fill('Folder task');
+    await page.getByRole('button', { name: /add/i }).click();
+    await expect(page.getByText('Folder task')).toBeVisible();
+
+    // Assign to folder
+    await page
+      .getByRole('listitem')
+      .filter({ hasText: 'Folder task' })
+      .getByLabel(/folder for/i)
+      .selectOption({ label: 'Work' });
+
+    // Filter by folder
+    await page.getByRole('navigation').getByText('Work').click();
+    await expect(page.getByText('Folder task')).toBeVisible();
+
+    // Remove from folder
+    await page
+      .getByRole('listitem')
+      .filter({ hasText: 'Folder task' })
+      .getByLabel(/folder for/i)
+      .selectOption({ label: 'None' });
+
+    // Todo should disappear from folder view
+    await expect(page.getByText('Folder task')).not.toBeVisible();
+
+    // Back to All Todos — should appear again
+    await page.getByRole('navigation').getByText('All Todos').click();
+    await expect(page.getByText('Folder task')).toBeVisible();
+  });
+
+  test('deletes a folder and its todos appear unassigned in All Todos', async ({ page }) => {
+    // Create folder and assign a todo
+    await page.getByLabel('New folder name').fill('Work');
+    await page.getByLabel('New folder name').press('Enter');
+    await expect(page.getByText('Work')).toBeVisible();
+
+    await page.getByLabel('Todo title').fill('Folder task');
+    await page.getByRole('button', { name: /add/i }).click();
+    await expect(page.getByText('Folder task')).toBeVisible();
+
+    await page
+      .getByRole('listitem')
+      .filter({ hasText: 'Folder task' })
+      .getByLabel(/folder for/i)
+      .selectOption({ label: 'Work' });
+
+    // Delete the folder via the trash icon
+    await page.getByLabel('Delete folder "Work"').click();
+
+    // Folder should be gone from sidebar
+    await expect(page.getByRole('navigation').getByText('Work')).not.toBeVisible();
+
+    // Todo should still appear in All Todos
+    await expect(page.getByText('Folder task')).toBeVisible();
+  });
 });

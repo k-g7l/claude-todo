@@ -79,6 +79,27 @@ describe('GET /api/todos', () => {
   });
 });
 
+describe('GET /api/todos with folder filter', () => {
+  it('returns only todos in the specified folder', async () => {
+    const { lastInsertRowid: folderId } = db
+      .prepare("INSERT INTO folders (name) VALUES ('Work')")
+      .run();
+    db.prepare('INSERT INTO todos (title, priority, folder_id) VALUES (?, ?, ?)').run(
+      'In folder',
+      'medium',
+      folderId
+    );
+    db.prepare("INSERT INTO todos (title, priority) VALUES ('No folder', 'low')").run();
+
+    const req = makeRequest(`http://localhost/api/todos?filter=all&folder=${folderId}`);
+    const res = await GET(req);
+    const data = await res.json();
+    expect(data).toHaveLength(1);
+    expect(data[0].title).toBe('In folder');
+    expect(data[0].folder_id).toBe(Number(folderId));
+  });
+});
+
 describe('POST /api/todos', () => {
   it('creates a todo and returns 201', async () => {
     const req = makeRequest('http://localhost/api/todos', {
@@ -128,6 +149,30 @@ describe('POST /api/todos', () => {
     const req = makeRequest('http://localhost/api/todos', {
       method: 'POST',
       body: JSON.stringify({ title: '   ' }),
+    });
+    const res = await POST(req);
+    expect(res.status).toBe(400);
+  });
+
+  it('assigns todo to a folder when folder_id provided', async () => {
+    const { lastInsertRowid: folderId } = db
+      .prepare("INSERT INTO folders (name) VALUES ('Work')")
+      .run();
+
+    const req = makeRequest('http://localhost/api/todos', {
+      method: 'POST',
+      body: JSON.stringify({ title: 'Work task', priority: 'high', folder_id: Number(folderId) }),
+    });
+    const res = await POST(req);
+    expect(res.status).toBe(201);
+    const data = await res.json();
+    expect(data.folder_id).toBe(Number(folderId));
+  });
+
+  it('returns 400 when folder_id does not exist', async () => {
+    const req = makeRequest('http://localhost/api/todos', {
+      method: 'POST',
+      body: JSON.stringify({ title: 'Task', priority: 'medium', folder_id: 999 }),
     });
     const res = await POST(req);
     expect(res.status).toBe(400);

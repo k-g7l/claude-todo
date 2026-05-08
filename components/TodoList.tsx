@@ -1,15 +1,17 @@
 'use client';
 
-import type { Todo } from '@/lib/types';
+import type { Todo, Folder } from '@/lib/types';
 import TodoItem from './TodoItem';
 
 interface Props {
   todos: Todo[];
   onToggle: (id: number, completed: boolean) => void;
   onDelete: (id: number) => void;
+  folders?: Folder[];
+  onFolderChange?: (id: number, folderId: number | null) => void;
 }
 
-export default function TodoList({ todos, onToggle, onDelete }: Props) {
+export default function TodoList({ todos, onToggle, onDelete, folders, onFolderChange }: Props) {
   if (todos.length === 0) {
     return (
       <div className="py-12 text-center text-gray-400 dark:text-gray-500">
@@ -21,7 +23,14 @@ export default function TodoList({ todos, onToggle, onDelete }: Props) {
   return (
     <ul className="flex flex-col gap-2">
       {todos.map((todo) => (
-        <TodoItem key={todo.id} todo={todo} onToggle={onToggle} onDelete={onDelete} />
+        <TodoItem
+          key={todo.id}
+          todo={todo}
+          onToggle={onToggle}
+          onDelete={onDelete}
+          folders={folders}
+          onFolderChange={onFolderChange}
+        />
       ))}
     </ul>
   );

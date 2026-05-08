@@ -4,8 +4,8 @@ import TodoList from '@/components/TodoList';
 import type { Todo } from '@/lib/types';
 
 const todos: Todo[] = [
-  { id: 1, title: 'First', due_date: null, priority: 'low', completed: false, created_at: '' },
-  { id: 2, title: 'Second', due_date: null, priority: 'high', completed: true, created_at: '' },
+  { id: 1, title: 'First', due_date: null, priority: 'low', completed: false, created_at: '', folder_id: null },
+  { id: 2, title: 'Second', due_date: null, priority: 'high', completed: true, created_at: '', folder_id: null },
 ];
 
 describe('TodoList', () => {

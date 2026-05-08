@@ -12,8 +12,15 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   }
 
   const body = await request.json();
-  if (typeof body.completed !== 'boolean') {
-    return NextResponse.json({ error: 'completed (boolean) is required' }, { status: 400 });
+  const hasCompleted = 'completed' in body;
+  const hasFolderId = 'folder_id' in body;
+
+  if (!hasCompleted && !hasFolderId) {
+    return NextResponse.json({ error: 'completed or folder_id is required' }, { status: 400 });
+  }
+
+  if (hasCompleted && typeof body.completed !== 'boolean') {
+    return NextResponse.json({ error: 'completed must be a boolean' }, { status: 400 });
   }
 
   const db = getDb();
@@ -22,7 +29,21 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     return NextResponse.json({ error: 'not found' }, { status: 404 });
   }
 
-  db.prepare('UPDATE todos SET completed = ? WHERE id = ?').run(body.completed ? 1 : 0, numId);
+  const setClauses: string[] = [];
+  const values: (number | null)[] = [];
+
+  if (hasCompleted) {
+    setClauses.push('completed = ?');
+    values.push(body.completed ? 1 : 0);
+  }
+
+  if (hasFolderId) {
+    setClauses.push('folder_id = ?');
+    values.push(body.folder_id ?? null);
+  }
+
+  values.push(numId);
+  db.prepare(`UPDATE todos SET ${setClauses.join(', ')} WHERE id = ?`).run(...values);
 
   const updated = db.prepare('SELECT * FROM todos WHERE id = ?').get(numId) as Todo;
   return NextResponse.json({ ...updated, completed: Boolean(updated.completed) });

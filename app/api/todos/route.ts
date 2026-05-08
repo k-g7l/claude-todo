@@ -5,17 +5,29 @@ import type { Todo, FilterStatus } from '@/lib/types';
 export function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const filter = (searchParams.get('filter') ?? 'all') as FilterStatus;
+  const folderParam = searchParams.get('folder');
+  const folderId = folderParam !== null && folderParam !== '' ? Number(folderParam) : null;
 
   const db = getDb();
-  let rows: Todo[];
+
+  const whereParts: string[] = [];
+  const params: (number | string)[] = [];
 
   if (filter === 'active') {
-    rows = db.prepare('SELECT * FROM todos WHERE completed = 0 ORDER BY created_at DESC').all() as Todo[];
+    whereParts.push('completed = 0');
   } else if (filter === 'completed') {
-    rows = db.prepare('SELECT * FROM todos WHERE completed = 1 ORDER BY created_at DESC').all() as Todo[];
-  } else {
-    rows = db.prepare('SELECT * FROM todos ORDER BY created_at DESC').all() as Todo[];
+    whereParts.push('completed = 1');
   }
+
+  if (folderId !== null && !isNaN(folderId)) {
+    whereParts.push('folder_id = ?');
+    params.push(folderId);
+  }
+
+  const where = whereParts.length ? `WHERE ${whereParts.join(' AND ')}` : '';
+  const rows = db
+    .prepare(`SELECT * FROM todos ${where} ORDER BY created_at DESC`)
+    .all(...params) as Todo[];
 
   const todos = rows.map((r) => ({ ...r, completed: Boolean(r.completed) }));
   return NextResponse.json(todos);
@@ -23,7 +35,7 @@ export function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
-  const { title, due_date, priority } = body;
+  const { title, due_date, priority, folder_id } = body;
 
   if (!title || typeof title !== 'string' || title.trim() === '') {
     return NextResponse.json({ error: 'title is required' }, { status: 400 });
@@ -33,10 +45,20 @@ export async function POST(request: NextRequest) {
   const resolvedPriority = validPriorities.includes(priority) ? priority : 'medium';
 
   const db = getDb();
+
+  let resolvedFolderId: number | null = null;
+  if (folder_id !== undefined && folder_id !== null) {
+    const folder = db.prepare('SELECT id FROM folders WHERE id = ?').get(folder_id);
+    if (!folder) {
+      return NextResponse.json({ error: 'folder not found' }, { status: 400 });
+    }
+    resolvedFolderId = folder_id;
+  }
+
   const stmt = db.prepare(
-    'INSERT INTO todos (title, due_date, priority) VALUES (?, ?, ?)'
+    'INSERT INTO todos (title, due_date, priority, folder_id) VALUES (?, ?, ?, ?)'
   );
-  const result = stmt.run(title.trim(), due_date ?? null, resolvedPriority);
+  const result = stmt.run(title.trim(), due_date ?? null, resolvedPriority, resolvedFolderId);
 
   const todo = db
     .prepare('SELECT * FROM todos WHERE id = ?')
